@@ -160,6 +160,7 @@ MonoBehaviour:
   normalGravity: 6
   fallGravity: 9
   jumpGravity: 4
+  sprintMultiplier: 1.5
   facingDirection: 1
   moveInput: {x: 0, y: 0}
   groundCheck: {fileID: 718016688}
@@ -201,8 +202,8 @@ CapsuleCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -0.12571716, y: 0.009821653}
-  m_Size: {x: 0.6100025, y: 1.718945}
+  m_Offset: {x: -0.094828606, y: 0.009821653}
+  m_Size: {x: 0.787611, y: 1.718945}
   m_Direction: 0
 --- !u!50 &125236881
 Rigidbody2D:
@@ -8115,7 +8116,7 @@ Transform:
   m_GameObject: {fileID: 718016687}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.128, y: -0.681, z: 0}
+  m_LocalPosition: {x: -0.096, y: -0.681, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
