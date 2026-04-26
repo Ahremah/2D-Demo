@@ -42,7 +42,7 @@ public class Player : MonoBehaviour
 
     void FixedUpdate()
     {
-        CheckGrounded(); // ALWAYS FIRST, DONT FUCK WITH THIS
+        CheckGrounded(); // ALWAYS FIRST, DONT FUCK WITH THIS - BIG DIK
         ApplyVariableGravity();
         HandleMovement();
         HandleJump();
