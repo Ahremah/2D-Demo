@@ -15,6 +15,9 @@ public class Player : MonoBehaviour
     public float normalGravity;
     public float fallGravity;
     public float jumpGravity;
+    public float sprintMultiplier = 1.5f;
+    private bool isRunning;
+    private bool isSliding;
 
     public int facingDirection = -1;
 
@@ -131,6 +134,32 @@ public class Player : MonoBehaviour
         else //jump is released
         {
             jumpReleased = true;
+        }
+    }
+
+    public void OnSprint(InputValue value)
+    {
+        if (value.isPressed)
+        {
+        isRunning = value.isPressed;
+        Debug.Log("Sprint pressed: " + isRunning);
+        }
+        else
+        {
+            isRunning = false;
+        }
+    }
+
+    public void OnSlide(InputValue value)
+    {
+        if (value.isPressed)
+        {
+            isSliding = value.isPressed;
+            Debug.Log("Slide pressed: " + isSliding);
+        }
+        else
+        {
+            isSliding = false;
         }
     }
 
