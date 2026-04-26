@@ -10,6 +10,7 @@ public class Player : MonoBehaviour
 
     [Header("Movement Variables")]
     public float jumpForce;
+    public float sprintForce;
     public float speed;
     public float jumpCutMultiplier = .5f;
     public float normalGravity;
@@ -25,6 +26,8 @@ public class Player : MonoBehaviour
     public Vector2 moveInput;
     private bool jumpPressed;
     private bool jumpReleased;
+    private bool sprintPressed;
+    private bool sprintReleased;
 
     [Header("GroundCheck")]
     public Transform groundCheck;
@@ -49,6 +52,7 @@ public class Player : MonoBehaviour
         ApplyVariableGravity();
         HandleMovement();
         HandleJump();
+        HandleSprint();
     }
 
     private void HandleMovement()
@@ -72,6 +76,19 @@ public class Player : MonoBehaviour
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * jumpCutMultiplier);
             }
             jumpReleased = false;
+        }
+    }
+
+    private void HandleSprint()
+    {
+        if (sprintPressed && isGrounded)
+        {
+            sprintPressed = true;
+            sprintReleased = false;
+        }
+        if (sprintReleased)
+        {
+            sprintReleased = true;
         }
     }
 
@@ -100,6 +117,7 @@ public class Player : MonoBehaviour
         anim.SetBool("isJumping", rb.linearVelocity.y > 0.1f && !isGrounded);
         anim.SetBool("isFalling", rb.linearVelocity.y < -0.1f && !isGrounded);
         anim.SetBool("isGrounded", isGrounded);
+        anim.SetBool("isRunning", isRunning);
         anim.SetFloat("yVelocity", rb.linearVelocity.y);
         anim.SetBool("isIdle", Mathf.Abs(moveInput.x) < .1f && isGrounded);
         anim.SetBool("isWalking", Mathf.Abs(moveInput.x) > .1f && isGrounded);
@@ -141,8 +159,9 @@ public class Player : MonoBehaviour
     {
         if (value.isPressed)
         {
-        isRunning = value.isPressed;
-        Debug.Log("Sprint pressed: " + isRunning);
+            sprintPressed = true;
+            isRunning = true;
+            Debug.Log("Sprint pressed: " + isRunning);
         }
         else
         {
