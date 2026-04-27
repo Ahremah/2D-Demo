@@ -3,139 +3,213 @@ using UnityEngine.InputSystem;
 
 public class Player : MonoBehaviour
 {
+    public PlayerState currentState;
+
+    public PlayerIdleState idleState;
+    public PlayerJumpState jumpState;
+    public PlayerMoveState moveState;
+    public PlayerCrouchState crouchState;
+    public PlayerSlideState slideState;
+
     [Header("Components")]
     public Rigidbody2D rb;
     public PlayerInput playerInput;
     public Animator anim;
+    public CapsuleCollider2D playerCollider;
 
     [Header("Movement Variables")]
     public float jumpForce;
-    public float sprintForce;
-    public float speed;
+    public float sprintSpeed;
+    public float walkSpeed;
     public float jumpCutMultiplier = .5f;
     public float normalGravity;
     public float fallGravity;
     public float jumpGravity;
-    public float sprintMultiplier = 1.5f;
+    public float sprintMultiplier = 3.5f;
+
     private bool isRunning;
     private bool isSliding;
 
     public int facingDirection = -1;
 
-    //Inputs
+    // Inputs 
     public Vector2 moveInput;
-    private bool jumpPressed;
-    private bool jumpReleased;
-    private bool sprintPressed;
-    private bool sprintReleased;
+    public bool jumpPressed;
+    public bool jumpReleased;
+    public bool sprintPressed;
+
+    [Header("Slide Settings")]
+    public float slideDuration = .6f;
+    public float slideSpeed;
+    public float slideStopDuration = 0.15f;
+
+    public float slideHeight;
+    public Vector2 slideOffset;
+    public float normalHeight;
+    public Vector2 normalOffset;
 
     [Header("GroundCheck")]
     public Transform groundCheck;
     public float groundCheckRadius;
     public LayerMask groundLayer;
-    private bool isGrounded;
+
+    public bool isGrounded;
+
+    [Header("Crouch Check")]
+    public Transform headCheck;
+    public float headCheckRadius = 0.2f;
+    public LayerMask headLayer;
+
+    [Header("Footsteps")]
+    public float walkStepRate = 0.5f;
+    public float sprintStepRate = 0.3f;
+
+    private float footstepTimer;
+
+    private void Awake()
+    {
+        idleState = new PlayerIdleState(this);
+        jumpState = new PlayerJumpState(this);
+        moveState = new PlayerMoveState(this);
+        crouchState = new PlayerCrouchState(this);
+        slideState = new PlayerSlideState(this);
+    }
 
     private void Start()
     {
         rb.gravityScale = normalGravity;
+        ChangeState(idleState);
     }
 
     void Update()
     {
-        Flip();
+        currentState.Update();
+
+        if (!isSliding)
+            Flip();
+
         HandleAnimations();
+        ResetFootstepsIfStopped();
+        HandleFootsteps();
     }
 
     void FixedUpdate()
     {
-        CheckGrounded(); // ALWAYS FIRST, DONT FUCK WITH THIS - BIG DIK
-        ApplyVariableGravity();
-        HandleMovement();
-        HandleJump();
+        currentState.FixedUpdate();
+
+        CheckGrounded();
         HandleSprint();
     }
 
-    private void HandleMovement()
+    public void ChangeState(PlayerState newState)
     {
-        float targetSpeed = moveInput.x * speed;
-        rb.linearVelocity = new Vector2(targetSpeed, rb.linearVelocity.y);
+        if (currentState != null)
+            currentState.Exit();
+
+        currentState = newState;
+        currentState.Enter();
     }
 
-    private void HandleJump()
+    public void SetColliderNormal()
     {
-        if (jumpPressed && isGrounded)
+        playerCollider.size = new Vector2(playerCollider.size.x, normalHeight);
+        playerCollider.offset = normalOffset;
+    }
+
+    public void SetColliderSlide()
+    {
+        playerCollider.size = new Vector2(playerCollider.size.x, slideHeight);
+        playerCollider.offset = slideOffset;
+    }
+
+    // ---------------- ?? FOOTSTEPS ?? ----------------
+
+    void HandleFootsteps()
+    {
+        if (!isGrounded) return;
+        if (Mathf.Abs(moveInput.x) < 0.1f) return;
+
+        float stepRate = isRunning ? sprintStepRate : walkStepRate;
+
+        footstepTimer -= Time.deltaTime;
+
+        if (footstepTimer <= 0f)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            jumpPressed = false;
-            jumpReleased = false;
-        }
-        if (jumpReleased)
-        {
-            if (rb.linearVelocity.y > 0) //still going up
-            {
-                rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * jumpCutMultiplier);
-            }
-            jumpReleased = false;
+            string step = isRunning ? "SprintStep" : "WalkStep";
+
+            AudioManager.instance?.Play(step);
+
+            // ?? IMPORTANT: reset based on movement start, not fixed value spam
+            footstepTimer = stepRate;
         }
     }
+
+    void ResetFootstepsIfStopped()
+    {
+        if (Mathf.Abs(moveInput.x) < 0.1f)
+            footstepTimer = 0f;
+    }
+
+    // ---------------- MOVEMENT FLAGS ----------------
 
     private void HandleSprint()
     {
-        if (sprintPressed && isGrounded)
+        if (isRunning && isGrounded)
         {
             sprintPressed = true;
-            sprintReleased = false;
-        }
-        if (sprintReleased)
-        {
-            sprintReleased = true;
-        }
-    }
-
-    void ApplyVariableGravity()
-    {
-        if(rb.linearVelocity.y < -0.1f) // falling
-        {
-            rb.gravityScale = fallGravity;
-        }
-        else if (rb.linearVelocity.y > 0.1f) // rising
-        {
-            rb.gravityScale = jumpGravity;
         }
         else
         {
-            rb.gravityScale = normalGravity; // grounded
+            sprintPressed = false;
         }
+    }
+
+    public void ApplyVariableGravity()
+    {
+        if (rb.linearVelocity.y < -0.1f)
+            rb.gravityScale = fallGravity;
+        else if (rb.linearVelocity.y > 0.1f)
+            rb.gravityScale = jumpGravity;
+        else
+            rb.gravityScale = normalGravity;
     }
 
     void CheckGrounded()
     {
-        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+        isGrounded = Physics2D.OverlapCircle(
+            groundCheck.position,
+            groundCheckRadius,
+            groundLayer
+        );
     }
+
+    public bool CheckForCeiling()
+    {
+        return Physics2D.OverlapCircle(
+            headCheck.position,
+            headCheckRadius,
+            groundLayer
+        );
+    }
+
     void HandleAnimations()
     {
-        anim.SetBool("isJumping", rb.linearVelocity.y > 0.1f && !isGrounded);
         anim.SetBool("isFalling", rb.linearVelocity.y < -0.1f && !isGrounded);
         anim.SetBool("isGrounded", isGrounded);
-        anim.SetBool("isRunning", isRunning);
         anim.SetFloat("yVelocity", rb.linearVelocity.y);
-        anim.SetBool("isIdle", Mathf.Abs(moveInput.x) < .1f && isGrounded);
-        anim.SetBool("isWalking", Mathf.Abs(moveInput.x) > .1f && isGrounded);
     }
 
     void Flip()
     {
         if (moveInput.x > 0.1f)
-        {
             facingDirection = -1;
-        }
         else if (moveInput.x < -0.1f)
-        {
             facingDirection = 1;
-        }
 
         transform.localScale = new Vector3(facingDirection, 1, 1);
     }
+
+    // ---------------- INPUT ----------------
 
     public void OnMove(InputValue value)
     {
@@ -149,7 +223,7 @@ public class Player : MonoBehaviour
             jumpPressed = true;
             jumpReleased = false;
         }
-        else //jump is released
+        else
         {
             jumpReleased = true;
         }
@@ -157,35 +231,20 @@ public class Player : MonoBehaviour
 
     public void OnSprint(InputValue value)
     {
-        if (value.isPressed)
-        {
-            sprintPressed = true;
-            isRunning = true;
-            Debug.Log("Sprint pressed: " + isRunning);
-        }
-        else
-        {
-            isRunning = false;
-        }
+        isRunning = value.isPressed;
     }
 
     public void OnSlide(InputValue value)
     {
-        if (value.isPressed)
-        {
-            isSliding = value.isPressed;
-            Debug.Log("Slide pressed: " + isSliding);
-        }
-        else
-        {
-            isSliding = false;
-        }
+        isSliding = value.isPressed;
     }
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.blue;
         Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
-    }
 
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(headCheck.position, headCheckRadius);
+    }
 }
